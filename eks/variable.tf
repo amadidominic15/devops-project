@@ -10,3 +10,7 @@ variable "instance_type" {
 variable "cluster_version" {
   default = ""
 }
+
+variable "region" {
+  default = ""
+}
