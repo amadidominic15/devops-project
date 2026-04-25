@@ -6,6 +6,7 @@ resource "kubernetes_manifest" "gateway_api" {
       name      = "gateway_api"
       namespace = "kube-system"
       annotations = {
+        "alb.ingress.kubernetes.io/scheme"      = "internet-facing"
         "alb.networking.k8s.io/scheme"          = "internet-facing"
         "alb.networking.k8s.io/certificate-arn" = var.acm_certificate_arn
         "alb.networking.k8s.io/listen-ports"    = "[{\"HTTPS\":443}]"
@@ -66,6 +67,30 @@ resource "kubernetes_manifest" "prometheus_route" {
         backendRefs = [{
           name = "kube-prometheus-stack-prometheus"
           port = 9090
+        }]
+      }]
+    }
+  }
+}
+
+resource "kubernetes_manifest" "alertmanager_route" {
+  manifest = {
+    apiVersion = "gateway.networking.k8s.io/v1"
+    kind       = "HTTPRoute"
+    metadata = {
+      name      = "alertmanager-route"
+      namespace = "monitoring"
+    }
+    spec = {
+      parentRefs = [{
+        name      = "gateway_api"
+        namespace = "kube-system"
+      }]
+      hostnames = ["alertmanager.${var.domain_name}"]
+      rules = [{
+        backendRefs = [{
+          name = "kube-prometheus-stack-alertmanager"
+          port = 9093
         }]
       }]
     }

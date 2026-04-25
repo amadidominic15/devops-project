@@ -1,6 +1,7 @@
 variable "environment" {}
 variable "project" {}
 variable "instance_type" {}
+variable "region" {}
 
 variable "acm_certificate_arn" {
   default = "arn:aws:acm:us-east-1:048058681621:certificate/78cc8397-6387-4772-b5c0-dbf87f872666"
@@ -27,3 +28,4 @@ variable "domain_name" {
 variable "allow_ip" {
   default = ["0.0.0.0/0"]
 }
+
