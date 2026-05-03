@@ -1,29 +1,45 @@
-resource "kubernetes_manifest" "gateway_api" {
+resource "kubernetes_manifest" "main_gateway" {
   manifest = {
     apiVersion = "gateway.networking.k8s.io/v1"
     kind       = "Gateway"
     metadata = {
-      name      = "gateway_api"
-      namespace = "kube-system"
+      name      = "main-gateway"
+      namespace = "default"
+
       annotations = {
-        "alb.ingress.kubernetes.io/scheme"      = "internet-facing"
         "alb.networking.k8s.io/scheme"          = "internet-facing"
-        "alb.networking.k8s.io/certificate-arn" = var.acm_certificate_arn
+        "alb.networking.k8s.io/target-type"     = "ip"
         "alb.networking.k8s.io/listen-ports"    = "[{\"HTTPS\":443}]"
+        "alb.networking.k8s.io/certificate-arn" = var.acm_certificate_arn
+
+        # 🔐 Strong TLS policy
+        "alb.networking.k8s.io/ssl-policy" = "ELBSecurityPolicy-TLS13-1-2-2021-06"
       }
     }
     spec = {
-      gatewayClassName = "alb"
-      listeners = [{
-        name     = "https"
-        protocol = "HTTPS"
-        port     = 443
-        hostname = "*.${var.domain_name}"
-      }]
+      gatewayClassName = "aws"
+
+      listeners = [
+        {
+          name     = "https"
+          protocol = "HTTPS"
+          port     = 443
+          hostname = "*.domain.com"
+
+          tls = {
+            mode = "Terminate"
+          }
+
+          allowedRoutes = {
+            namespaces = {
+              from = "All"
+            }
+          }
+        }
+      ]
     }
   }
 }
-
 
 resource "kubernetes_manifest" "grafana_route" {
   manifest = {
@@ -35,16 +51,22 @@ resource "kubernetes_manifest" "grafana_route" {
     }
     spec = {
       parentRefs = [{
-        name      = "gateway_api"
-        namespace = "kube-system"
-      }]
+          name      = "main-gateway"
+          namespace = "default"
+        }]
       hostnames = ["grafana.${var.domain_name}"]
       rules = [{
-        backendRefs = [{
-          name = "kube-prometheus-stack-grafana"
-          port = 80
+          matches = [{
+              path = {
+                type  = "PathPrefix"
+                value = "/"
+              }
+            }]
+          backendRefs = [{
+              name = "kube-prometheus-stack-grafana"
+              port = 80
+            }]
         }]
-      }]
     }
   }
 }
@@ -59,43 +81,27 @@ resource "kubernetes_manifest" "prometheus_route" {
     }
     spec = {
       parentRefs = [{
-        name      = "gateway_api"
-        namespace = "kube-system"
-      }]
+          name      = "main-gateway"
+          namespace = "default"
+        }]
       hostnames = ["prometheus.${var.domain_name}"]
       rules = [{
-        backendRefs = [{
-          name = "kube-prometheus-stack-prometheus"
-          port = 9090
+          matches = [{
+              path = {
+                type  = "PathPrefix"
+                value = "/"
+              }
+            }]
+
+          backendRefs = [{
+              name = "kube-prometheus-stack-prometheus"
+              port = 9090
+            }]
         }]
-      }]
     }
   }
 }
 
-resource "kubernetes_manifest" "alertmanager_route" {
-  manifest = {
-    apiVersion = "gateway.networking.k8s.io/v1"
-    kind       = "HTTPRoute"
-    metadata = {
-      name      = "alertmanager-route"
-      namespace = "monitoring"
-    }
-    spec = {
-      parentRefs = [{
-        name      = "gateway_api"
-        namespace = "kube-system"
-      }]
-      hostnames = ["alertmanager.${var.domain_name}"]
-      rules = [{
-        backendRefs = [{
-          name = "kube-prometheus-stack-alertmanager"
-          port = 9093
-        }]
-      }]
-    }
-  }
-}
 
 resource "kubernetes_manifest" "argocd_route" {
   manifest = {
@@ -107,16 +113,24 @@ resource "kubernetes_manifest" "argocd_route" {
     }
     spec = {
       parentRefs = [{
-        name      = "gateway_api"
-        namespace = "kube-system"
-      }]
+          name      = "main-gateway"
+          namespace = "kube-system"
+        }]
       hostnames = ["argocd.${var.domain_name}"]
       rules = [{
-        backendRefs = [{
-          name = "argocd-server"
-          port = 80
+          matches = [{
+              path = {
+                type  = "PathPrefix"
+                value = "/"
+              }
+            }]
+
+          backendRefs = [{
+              name = "argocd-server"
+              port = 80
+            }]
         }]
-      }]
     }
   }
 }
+

@@ -1,31 +1,75 @@
-resource "aws_iam_role" "eks-alb-ingress-controller" {
-  name = "eks-alb-ingress-controller-${var.environment}"
-  assume_role_policy = data.aws_iam_policy_document.alb_controller_assume_role_policy.json  
+resource "aws_iam_role" "gateway_api_controller" {
+  name               = "${var.project}-${var.environment}-gateway-api"
+  assume_role_policy = data.aws_iam_policy_document.gateway_api_assume_role.json
 }
 
-resource "aws_iam_role_policy_attachment" "alb_controller_policy_attachment" {
-  role       = aws_iam_role.eks-alb-ingress-controller.name
-  policy_arn = aws_iam_policy.alb_controller_policy.arn
+resource "aws_iam_policy" "gateway_api" {
+  name = "${var.project}-${var.environment}-gateway-api-policy"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+
+      # ALB / ELB management
+      {
+        Effect = "Allow"
+        Action = [
+          "elasticloadbalancing:*"
+        ]
+        Resource = "*"
+      },
+
+      # EC2 networking (required for ALB)
+      {
+        Effect = "Allow"
+        Action = [
+          "ec2:Describe*",
+          "ec2:CreateSecurityGroup",
+          "ec2:DeleteSecurityGroup",
+          "ec2:AuthorizeSecurityGroupIngress",
+          "ec2:RevokeSecurityGroupIngress",
+          "ec2:CreateTags",
+          "ec2:DeleteTags"
+        ]
+        Resource = "*"
+      },
+
+      # ACM (for HTTPS)
+      {
+        Effect = "Allow"
+        Action = [
+          "acm:DescribeCertificate"
+        ]
+        Resource = "*"
+      },
+
+      # IAM
+      {
+        Effect = "Allow"
+        Action = [
+          "iam:PassRole",
+          "iam:CreateServiceLinkedRole"
+        ]
+        Resource = "*"
+      },
+
+      # Tagging
+      {
+        Effect = "Allow"
+        Action = [
+          "tag:GetResources",
+          "tag:TagResources"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
 }
 
-# Define the IAM policy document for the AssumeRole policy
-data "aws_iam_policy_document" "alb_controller_assume_role_policy" {
-  statement {
-    actions   = ["sts:AssumeRoleWithWebIdentity"]
-    effect    = "Allow"
-    principals {
-      type        = "Federated"
-      identifiers = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:oidc-provider/${module.eks.oidc_provider}"]
-    }
-    condition {
-      test     = "StringEquals"
-      variable = "${module.eks.oidc_provider}:aud"
-      values   = ["sts.amazonaws.com"]
-    }
-    condition {
-      test     = "StringEquals"
-      variable = "${module.eks.oidc_provider}:sub"
-      values   = ["system:serviceaccount:kube-system:aws-load-balancer-controller"]
-    }
-  }
+resource "aws_iam_role_policy_attachment" "gateway_api" {
+  role       = aws_iam_role.gateway_api_controller.name
+  policy_arn = aws_iam_policy.gateway_api.arn
 }
+
+
+

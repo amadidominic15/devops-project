@@ -1,5 +1,5 @@
 //removing the plugin atthe time of cluster ceration because it need node to be created first
-resource "aws_eks_addon" "example" {
+resource "aws_eks_addon" "addon" {
   depends_on = [ module.eks_managed_node_group ]
   cluster_name = module.eks.cluster_name
   addon_name   = "coredns"
@@ -9,9 +9,8 @@ resource "aws_eks_addon" "example" {
 module "eks_managed_node_group" {
   source = "terraform-aws-modules/eks/aws//modules/eks-managed-node-group"
   cluster_service_cidr = module.eks.cluster_service_cidr
-  name            = "${var.project}-node"
+  name            = "${var.project}-${var.project}-node"
   cluster_name    = module.eks.cluster_name
-  cluster_version = var.cluster_version
 
   subnet_ids = data.aws_subnets.private_subnets.ids
   min_size     = 2

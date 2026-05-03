@@ -3,7 +3,7 @@ module "eks" {
   source  = "terraform-aws-modules/eks/aws"
   version = "~> 20.3"
 
-  cluster_name                   = "${var.project}-eks-${var.environment}"
+  cluster_name                   = "${var.project}-${var.environment}-eks"
   cluster_version                = var.cluster_version
   cluster_endpoint_public_access = true
   cluster_upgrade_policy = {
@@ -14,10 +14,10 @@ module "eks" {
   subnet_ids = data.aws_subnets.private_subnets.ids
   control_plane_subnet_ids = data.aws_subnets.private_subnets.ids
 
-  create_cluster_security_group            = false
-  create_node_security_group               = false
+  create_cluster_security_group            = true
+  create_node_security_group               = true
   enable_cluster_creator_admin_permissions = true
-  enable_irsa                              = true #for ebs csi driver
+  enable_irsa                              = true # oidc for ebs, api controller, etc
 
   cluster_addons = {
     eks-pod-identity-agent = { most_recent = true }

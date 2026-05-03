@@ -13,12 +13,12 @@ module "vpc" {
 
   public_subnet_tags = {
     "kubernetes.io/role/elb"                  = 1
-    "kubernetes.io/cluster/${local.name}-eks" = "shared"
+    "kubernetes.io/cluster/${var.project}-${var.environment}-eks" = "shared"
   }
 
   private_subnet_tags = {
     "kubernetes.io/role/internal-elb"         = 1
-    "kubernetes.io/cluster/${local.name}-eks" = "shared"
+    "kubernetes.io/cluster/${var.project}-${var.environment}-eks" = "shared"
   }
 
 }
